@@ -305,22 +305,26 @@ def lister_decideurs(
     wilaya: Optional[str] = None,
     secteur: Optional[str] = None,
     confiance: Optional[str] = None,
+    avec_contact_uniquement: bool = True,
     page: int = Query(1, ge=1),
     limite: int = Query(20, le=200),
     connexion: sqlite3.Connection = Depends(get_connexion),
 ):
-    conditions = [
-        "contact_nom IS NOT NULL",
-        "(contact_email_personnel IS NOT NULL OR contact_telephone_personnel IS NOT NULL OR contact_linkedin_personnel IS NOT NULL)",
-    ]
+    conditions = []
     params: list = []
+    if avec_contact_uniquement:
+        conditions.append("contact_nom IS NOT NULL")
+        conditions.append(
+            "(contact_email_personnel IS NOT NULL OR contact_telephone_personnel IS NOT NULL "
+            "OR contact_linkedin_personnel IS NOT NULL)"
+        )
     if wilaya:
         conditions.append("wilaya_name = ?")
         params.append(wilaya)
     if secteur:
         conditions.append("secteur = ?")
         params.append(secteur)
-    where = f"WHERE {' AND '.join(conditions)}"
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
     rows = connexion.execute(f"SELECT * FROM entreprises {where}", params).fetchall()
     resultats = []

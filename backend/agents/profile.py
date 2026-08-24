@@ -78,9 +78,9 @@ def _extraire_email_nominatif(contexte: str, nom_decideur: str) -> str | None:
 
 def _slug_correspond_au_nom(url_linkedin: str, nom_decideur: str) -> bool:
     """Un lien linkedin.com/in/<slug> n'est retenu que si le slug contient
-    au moins un fragment significatif (≥3 lettres) du nom recherché —
-    évite d'accepter le premier résultat LinkedIn de la liste sans lien
-    réel avec la personne visée."""
+    soit deux fragments du nom (prénom+nom), soit un seul fragment mais
+    assez long (≥5 lettres) — évite les faux positifs sur un prénom seul
+    ou un nom de famille court/générique."""
     if not nom_decideur or not url_linkedin:
         return False
     slug = url_linkedin.rstrip("/").rsplit("/in/", 1)[-1]
@@ -93,7 +93,10 @@ def _slug_correspond_au_nom(url_linkedin: str, nom_decideur: str) -> bool:
     if not fragments_nom:
         return False
 
-    return any(fragment in slug_normalise for fragment in fragments_nom)
+    matches = [f for f in fragments_nom if f in slug_normalise]
+    if len(fragments_nom) >= 2:
+        return len(matches) >= 2
+    return len(matches) >= 1 and len(fragments_nom[0]) >= 5
 
 
 class ProfileAgent:

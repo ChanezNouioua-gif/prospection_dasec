@@ -25,6 +25,7 @@ from tools.llm_client import get_llm_client
 from tools.rate_limiter import BudgetGuard
 from tools.discovery_tools import RechercheGratuiteTool, RecherchePayanteTool,RechercheTavilyTool
 from agents.profile import ProfileAgent
+from agents.discovery import DiscoveryAgent
 
 HEADERS_HTTP = {"User-Agent": "dasec-prospection/1.0 (contact: TON_EMAIL@exemple.com)"}
 
@@ -48,10 +49,13 @@ def main():
 
         budget_guard = BudgetGuard(BUDGET_MAX_APPELS_SERPER_PAR_RUN)
         llm_client = get_llm_client()
+        discovery_agent = DiscoveryAgent(llm_client, budget_guard, HEADERS_HTTP)
         profile_agent = ProfileAgent(
           llm_client, HEADERS_HTTP,
-          RechercheGratuiteTool(), RecherchePayanteTool(budget_guard),
-          RechercheTavilyTool(), budget_guard,
+          discovery_agent.tools["recherche_gratuite"],
+          discovery_agent.tools["recherche_payante"],
+          RechercheTavilyTool(),
+          budget_guard,
         )
 
         traites, trouves = 0, 0

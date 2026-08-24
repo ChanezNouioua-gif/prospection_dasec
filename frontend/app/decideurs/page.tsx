@@ -91,6 +91,11 @@ export default function DecideursPage() {
   const [filtreWilaya, setFiltreWilaya] = useState("Tous");
   const [filtreSecteur, setFiltreSecteur] = useState("Tous");
   const [filtreConfiance, setFiltreConfiance] = useState("Tous");
+  const [avecContactUniquement, setAvecContactUniquement] = useState(true);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filtreWilaya, filtreSecteur, filtreConfiance, avecContactUniquement]);
 
   useEffect(() => {
     async function charger() {
@@ -101,6 +106,7 @@ export default function DecideursPage() {
         if (filtreWilaya !== "Tous") params.set("wilaya", filtreWilaya);
         if (filtreSecteur !== "Tous") params.set("secteur", filtreSecteur);
         if (filtreConfiance !== "Tous") params.set("confiance", filtreConfiance);
+        params.set("avec_contact_uniquement", String(avecContactUniquement));
 
         const [resListe, resResume] = await Promise.all([
           fetch(`http://localhost:8000/decideurs?${params}`, { credentials: "include", cache: "no-store" }),
@@ -122,7 +128,7 @@ export default function DecideursPage() {
       }
     }
     charger();
-  }, [page, filtreWilaya, filtreSecteur, filtreConfiance]);
+  }, [page, filtreWilaya, filtreSecteur, filtreConfiance, avecContactUniquement]);
 
   const selected = useMemo(
     () => decideurs.find((d) => d.id === selectedId) ?? decideurs[0],
@@ -148,6 +154,7 @@ export default function DecideursPage() {
             wilaya={filtreWilaya} setWilaya={setFiltreWilaya}
             secteur={filtreSecteur} setSecteur={setFiltreSecteur}
             confiance={filtreConfiance} setConfiance={setFiltreConfiance}
+            avecContact={avecContactUniquement} setAvecContact={setAvecContactUniquement}
           />
 
           {erreur && (
@@ -306,27 +313,79 @@ function Stat({ valeur, label }: { valeur: number; label: string }) {
 /* ---------------------------------------------------------------- */
 
 function FiltersBar({
-  wilaya, setWilaya,
-  secteur, setSecteur,
-  confiance, setConfiance,
+  wilaya,
+  setWilaya,
+  secteur,
+  setSecteur,
+  confiance,
+  setConfiance,
+  avecContact,
+  setAvecContact,
 }: {
-  wilaya: string; setWilaya: (v: string) => void;
-  secteur: string; setSecteur: (v: string) => void;
-  confiance: string; setConfiance: (v: string) => void;
+  wilaya: string;
+  setWilaya: (v: string) => void;
+  secteur: string;
+  setSecteur: (v: string) => void;
+  confiance: string;
+  setConfiance: (v: string) => void;
+  avecContact: boolean;
+  setAvecContact: (v: boolean) => void;
 }) {
   return (
     <div className="mt-4 flex flex-wrap items-center gap-3">
-      <SimpleSelect value={wilaya} onChange={setWilaya} label="Wilaya" options={["Tous"]} />
-      <SimpleSelect value={secteur} onChange={setSecteur} label="Secteur" options={["Tous", "santé", "assurance", "juridique", "industrie", "étatique"]} />
+      <SimpleSelect
+        value={wilaya}
+        onChange={setWilaya}
+        label="Wilaya"
+        options={["Tous"]}
+      />
+
+      <SimpleSelect
+        value={secteur}
+        onChange={setSecteur}
+        label="Secteur"
+        options={[
+          "Tous",
+          "santé",
+          "assurance",
+          "juridique",
+          "industrie",
+          "étatique",
+        ]}
+      />
+
       <SimpleSelect
         value={confiance}
-        onChange={setConfiance}
+        onChange={(v) => {
+          setConfiance(v);
+          if (v === "Aucun contact") setAvecContact(false);
+        }}
         label="Confiance"
         options={["Tous", "Élevée", "Moyenne", "Faible", "Aucun contact"]}
       />
-      {(wilaya !== "Tous" || secteur !== "Tous" || confiance !== "Tous") && (
+
+      <button
+        onClick={() => setAvecContact(!avecContact)}
+        className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium transition ${
+          avecContact
+            ? "border-slate-200 bg-white text-slate-700"
+            : "border-blue-200 bg-blue-50 text-blue-700"
+        }`}
+      >
+        {avecContact ? "Avec contact uniquement" : "Tous les prospects"}
+      </button>
+
+      {(wilaya !== "Tous" ||
+        secteur !== "Tous" ||
+        confiance !== "Tous" ||
+        !avecContact) && (
         <button
-          onClick={() => { setWilaya("Tous"); setSecteur("Tous"); setConfiance("Tous"); }}
+          onClick={() => {
+            setWilaya("Tous");
+            setSecteur("Tous");
+            setConfiance("Tous");
+            setAvecContact(true);
+          }}
           className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900"
         >
           <RotateCcw className="h-3.5 w-3.5" />
@@ -436,7 +495,8 @@ function ListeDecideurs({
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((n) => (
             <button
               key={n}
               onClick={() => setPage(n)}
@@ -447,6 +507,21 @@ function ListeDecideurs({
               {n}
             </button>
           ))}
+
+          {totalPages > 5 && (
+            <>
+              <span className="px-1 text-sm text-slate-400">…</span>
+              <button
+                onClick={() => setPage(totalPages)}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition ${
+                  page === totalPages ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                {totalPages}
+              </button>
+            </>
+          )}
+
           <button
             onClick={() => setPage(Math.min(totalPages, page + 1))}
             disabled={page === totalPages}

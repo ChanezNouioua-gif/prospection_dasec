@@ -19,9 +19,11 @@ from agents.scoring import ScoringAgent
 from agents.coordinator import CoordinatorAgent
 from tools.rate_limiter import BudgetGuard
 from tools.llm_client import get_llm_client
+from tools.discovery_tools import RechercheTavilyTool  
 
 HEADERS_HTTP = {"User-Agent": "dasec-prospection/1.0 (contact: TON_EMAIL@exemple.com)"}
 print(DB_PATH)
+
 
 
 def construire_pipeline(connexion):
@@ -32,7 +34,13 @@ def construire_pipeline(connexion):
     llm_client = get_llm_client()
 
     discovery_agent = DiscoveryAgent(llm_client, budget_guard, HEADERS_HTTP)
-    profile_agent = ProfileAgent(llm_client, HEADERS_HTTP, discovery_agent.tools["recherche_gratuite"], discovery_agent.tools["recherche_payante"])
+    profile_agent = ProfileAgent(
+        llm_client, HEADERS_HTTP,
+        discovery_agent.tools["recherche_gratuite"],
+        discovery_agent.tools["recherche_payante"],
+        RechercheTavilyTool(),
+        budget_guard,
+    )
 
     densite_communes = database_agent.charger_densite_communes()
     scoring_agent = ScoringAgent(densite_communes)
