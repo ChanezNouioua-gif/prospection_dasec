@@ -33,6 +33,8 @@ import {
   MapPin,
 } from "lucide-react";
 
+import * as XLSX from "xlsx";
+
 /* ---------------------------------------------------------------- */
 /* Types                                                             */
 /* ---------------------------------------------------------------- */
@@ -212,12 +214,21 @@ export default function CrmPage() {
       return matchRecherche && matchSecteur && matchStatut && matchSpecial;
     });
   }, [resume, recherche, filtreSecteur, filtreStatut, filtreSpecial]);
+  
+
+  function exporterExcel() {
+    const feuille = XLSX.utils.json_to_sheet(opportunitesFiltrees);
+    const classeur = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(classeur, feuille, "Prospects");
+    const date = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(classeur, `prospects_crm_${date}.xlsx`);
+  }
 
   return (
     <main className="flex min-h-screen bg-slate-50/60 text-slate-900">
       <Sidebar />
       <div className="flex-1">
-        <TopBar recherche={recherche} onRechercheChange={setRecherche} />
+        <TopBar recherche={recherche} onRechercheChange={setRecherche} onExporter={exporterExcel} />
         <div className="mx-auto max-w-[1500px] px-6 pb-12 pt-6">
           <PageHeader />
 
@@ -237,7 +248,7 @@ export default function CrmPage() {
             <>
               <AttentionSection resume={resume} />
 
-              <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
+              <div className="mt-6 grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
                 <div ref={tachesRef}>
                   <TachesDuJourSection
                     taches={resume.taches_du_jour}
@@ -287,103 +298,8 @@ export default function CrmPage() {
 /* ---------------------------------------------------------------- */
 /* Sidebar / TopBar                                                   */
 /* ---------------------------------------------------------------- */
-
-function Sidebar() {
-  const items = [
-    { label: "Prospection", icon: Radar, href: "/dashboard", active: false },
-    { label: "Décideurs", icon: UserSearch, href: "/decideurs", active: false },
-    { label: "CRM", icon: Building2, href: "/crm", active: true },
-    { label: "Campagnes", icon: Megaphone, href: "#", active: false },
-    { label: "Historique", icon: History, href: "#", active: false },
-    { label: "Paramètres", icon: Settings, href: "#", active: false },
-  ];
-
-  return (
-    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col justify-between border-r border-slate-200/70 bg-white px-4 py-6">
-      <div>
-        <div className="flex items-center gap-2.5 px-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 shadow-lg shadow-blue-500/25">
-            <ShieldCheck className="h-4.5 w-4.5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold leading-tight text-slate-900">DASEC</p>
-            <p className="text-[11px] text-slate-400">Prospect Intelligence</p>
-          </div>
-        </div>
-
-        <nav className="mt-8 flex flex-col gap-1">
-          {items.map(({ label, icon: Icon, href, active }) => (
-            <Link
-              key={label}
-              href={href}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                active
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-
-      <div className="flex flex-col gap-1 border-t border-slate-100 pt-4">
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
-            H
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-800">Hanane</p>
-            <p className="text-[11px] text-slate-400">Commerciale</p>
-          </div>
-        </div>
-        <button className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-400 transition hover:bg-slate-50 hover:text-slate-700">
-          <LogOut className="h-4 w-4" />
-          Déconnexion
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function TopBar({
-  recherche,
-  onRechercheChange,
-}: {
-  recherche: string;
-  onRechercheChange: (v: string) => void;
-}) {
-  return (
-    <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-20 max-w-[1500px] items-center gap-4 px-6">
-        <div className="relative flex-1 max-w-xl">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={recherche}
-            onChange={(e) => onRechercheChange(e.target.value)}
-            placeholder="Rechercher un prospect, une entreprise, une commune..."
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/60 py-2.5 pl-11 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
-          />
-        </div>
-        <div className="ml-auto flex items-center gap-3">
-          <button className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:border-slate-900 hover:text-slate-900">
-            <Bell className="h-4 w-4" />
-          </button>
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            Ajouter un prospect
-          </Link>
-        </div>
-      </div>
-    </header>
-  );
-}
+import { Sidebar } from "@/components/Sidebar";
+import { TopBar } from "@/components/TopBar";
 
 /* ---------------------------------------------------------------- */
 /* Header de page                                                    */
@@ -550,7 +466,7 @@ function TachesDuJourSection({
   });
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
+    <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CalendarClock className="h-4 w-4 text-slate-400" />
@@ -562,7 +478,7 @@ function TachesDuJourSection({
       </div>
 
       {tachesTriees.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 p-8 text-center">
           <CheckCircle2 className="mx-auto h-6 w-6 text-emerald-400" />
           <p className="mt-2 text-sm font-medium text-slate-500">Rien en attente pour le moment</p>
           <p className="mt-1 text-xs text-slate-400">
@@ -570,7 +486,7 @@ function TachesDuJourSection({
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="flex-1 space-y-2 overflow-y-auto pr-1">
           {tachesTriees.map((t) => {
             const Icone = ICONE_TACHE[t.type];
             return (
@@ -660,14 +576,21 @@ function tempsRelatif(dateIso: string | null | undefined): string {
 
 function ActiviteSection({ activites }: { activites: Activite[] }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
-      <div className="mb-4 flex items-center gap-2">
-        <Activity className="h-4 w-4 text-slate-400" />
-        <p className="text-sm font-semibold text-slate-900">Activité récente</p>
+    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100 xl:h-[470px]">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Activity className="h-4 w-4 text-slate-400" />
+          <p className="text-sm font-semibold text-slate-900">Activité récente</p>
+        </div>
+        {activites.length > 0 && (
+          <Link href="/historique" className="text-xs font-medium text-blue-600 hover:underline">
+            Voir tout
+          </Link>
+        )}
       </div>
 
       {activites.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-10 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-10 text-center">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400">
             <Activity className="h-5 w-5" />
           </div>
@@ -677,7 +600,7 @@ function ActiviteSection({ activites }: { activites: Activite[] }) {
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto pr-1">
           {activites.map((a) => {
             const Icone = ICONE_ACTIVITE[a.type];
             return (

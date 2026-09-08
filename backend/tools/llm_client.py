@@ -9,7 +9,7 @@ import re
 import time
 from abc import ABC, abstractmethod
 
-from config import LLM_PROVIDER, LLM_MODEL, ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEYS
+from backend.config import LLM_PROVIDER, LLM_MODEL, ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEYS
 
 
 

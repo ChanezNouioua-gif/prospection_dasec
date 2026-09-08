@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
+import Image from "next/image";
 
 export default function ConnexionPage() {
   const router = useRouter();
@@ -50,11 +51,18 @@ export default function ConnexionPage() {
       <div className="relative w-full max-w-md px-6">
         {/* Logo / header */}
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 shadow-lg shadow-blue-500/25">
-            <ShieldCheck className="h-6 w-6 text-white" />
+          <div className="flex h-10 w-10 items-center justify-center">
+           <Image
+             src="/logo_dasecgroup.png"
+             alt="DASEC Group"
+             width={60}
+             height={60}
+             className="h-12 w-12 object-contain"
+             priority
+            />
           </div>
           <p className="mt-4 text-xs uppercase tracking-[0.35em] text-slate-400">
-            DASEC
+            DASEC GROUP
           </p>
           <h1 className="text-xl font-bold tracking-tight text-slate-900">
             Prospect Intelligence
@@ -83,7 +91,7 @@ export default function ConnexionPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                placeholder="karim"
+                placeholder="Dasec_equipe"
               />
             </div>
 

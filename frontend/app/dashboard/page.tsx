@@ -1,5 +1,5 @@
 "use client";
-
+import * as XLSX from "xlsx";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import { toEtablissement } from "@/lib/adapter";
 import { ProspectsResponse } from "@/lib/types";
+import { useRouter } from "next/dist/client/components/navigation";
+import { getCurrentUser, logout } from "@/lib/api";
 
 
 /* ---------------------------------------------------------------- */
@@ -124,12 +126,27 @@ export default function DashboardPage() {
 
   useEffect(() => {
    async function chargerFiltres() {
-    const params = new URLSearchParams();
-    if (filtreWilaya !== "Tous") params.set("wilaya", filtreWilaya);
-    if (filtreSecteur !== "Tous") params.set("secteur", filtreSecteur);
-    const res = await fetch(`http://localhost:8000/filtres?${params}`, { cache: "no-store" });
-    const data: FiltresOptions = await res.json();
-    setOptions(data);
+    try {
+      const params = new URLSearchParams();
+      if (filtreWilaya !== "Tous") params.set("wilaya", filtreWilaya);
+      if (filtreSecteur !== "Tous") params.set("secteur", filtreSecteur);
+      const res = await fetch(`http://localhost:8000/filtres?${params}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Impossible de charger les filtres");
+
+      const data: Partial<FiltresOptions> = await res.json();
+      setOptions({
+        wilayas: Array.isArray(data.wilayas) ? data.wilayas : [],
+        secteurs: Array.isArray(data.secteurs) ? data.secteurs : [],
+        communes: Array.isArray(data.communes) ? data.communes : [],
+        sous_secteurs: Array.isArray(data.sous_secteurs) ? data.sous_secteurs : [],
+      });
+    } catch (e) {
+      console.error(e);
+      setOptions({ wilayas: [], secteurs: [], communes: [], sous_secteurs: [] });
+    }
    }
    chargerFiltres();
    }, [filtreWilaya, filtreSecteur]);
@@ -176,12 +193,19 @@ export default function DashboardPage() {
   );
 
   const totalPages = Math.max(1, Math.ceil(total / 10));
+  function exporterExcel() {
+   const feuille = XLSX.utils.json_to_sheet(etablissements);
+   const classeur = XLSX.utils.book_new();
+   XLSX.utils.book_append_sheet(classeur, feuille, "Prospects");
+   const date = new Date().toISOString().slice(0, 10);
+   XLSX.writeFile(classeur, `prospects_${date}.xlsx`);
+  }
 
   return (
     <main className="flex min-h-screen bg-slate-50/60 text-slate-900">
       <Sidebar />
       <div className="flex-1">
-        <TopBar />
+        <TopBar onExporter={exporterExcel} />
         <div className="mx-auto max-w-[1500px] px-6 pb-12 pt-6">
           <Filters
             total={total}
@@ -244,103 +268,13 @@ export default function DashboardPage() {
 /* ---------------------------------------------------------------- */
 /* Sidebar                                                            */
 /* ---------------------------------------------------------------- */
-
-function Sidebar() {
-  const items = [
-    { label: "Prospection", icon: Radar, href: "/dashboard", active: true },
-    { label: "Décideurs", icon: UserSearch, href: "/decideurs", active: false },
-    { label: "CRM", icon: Building2, href: "/crm", active: false },
-    { label: "Campagnes", icon: Megaphone, href: "#", active: false },
-    { label: "Historique", icon: History, href: "#", active: false },
-    { label: "Paramètres", icon: Settings, href: "#", active: false },
-  ];
-
-  return (
-    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col justify-between border-r border-slate-200/70 bg-white px-4 py-6">
-      <div>
-        <div className="flex items-center gap-2.5 px-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 shadow-lg shadow-blue-500/25">
-            <ShieldCheck className="h-4.5 w-4.5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold leading-tight text-slate-900">DASEC</p>
-            <p className="text-[11px] text-slate-400">Prospect Intelligence</p>
-          </div>
-        </div>
-
-        <nav className="mt-8 flex flex-col gap-1">
-          {items.map(({ label, icon: Icon, href, active }) => (
-            <Link
-              key={label}
-              href={href}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                active
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-
-      <div className="flex flex-col gap-1 border-t border-slate-100 pt-4">
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
-            H
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-800">Hanane</p>
-            <p className="text-[11px] text-slate-400">Commerciale</p>
-          </div>
-        </div>
-        <button className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-400 transition hover:bg-slate-50 hover:text-slate-700">
-          <LogOut className="h-4 w-4" />
-          Déconnexion
-        </button>
-      </div>
-    </aside>
-  );
-}
+import { Sidebar } from "@/components/Sidebar";
 
 /* ---------------------------------------------------------------- */
 /* Top bar                                                            */
 /* ---------------------------------------------------------------- */
 
-function TopBar() {
-  return (
-    <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-20 max-w-[1500px] items-center gap-4 px-6">
-        <div className="relative flex-1 max-w-xl">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Rechercher un établissement, une commune, une wilaya..."
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/60 py-2.5 pl-11 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
-          />
-        </div>
-        <div className="ml-auto flex items-center gap-3">
-          <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:border-slate-900 hover:text-slate-900">
-            <Download className="h-4 w-4" />
-            Exporter
-          </button>
-          <button className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5 hover:bg-blue-700">
-            <Plus className="h-4 w-4" />
-            Nouvelle recherche
-          </button>
-          <button className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:border-slate-900 hover:text-slate-900">
-            <Bell className="h-4 w-4" />
-            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
-              2
-            </span>
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-}
+import { TopBar } from "@/components/TopBar";
 
 /* ---------------------------------------------------------------- */
 /* Filters                                                            */
@@ -379,7 +313,7 @@ function FilterSelect({
           >
             {allLabel}
           </button>
-          {options.map((opt) => (
+          {(Array.isArray(options) ? options : []).map((opt) => (
             <button
               key={opt}
               onClick={() => { onChange(opt); setOpen(false); }}

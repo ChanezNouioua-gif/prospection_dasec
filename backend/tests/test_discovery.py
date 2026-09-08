@@ -1,9 +1,9 @@
 import json
 
-from agents.discovery import DiscoveryAgent
-from models.schemas import Entreprise, DiscoveryObservation
-from tools.web_search import ResultatRecherche
-from tools.rate_limiter import BudgetGuard
+from backend.agents.discovery import DiscoveryAgent
+from backend.models.schemas import Entreprise, DiscoveryObservation
+from backend.tools.web_search import ResultatRecherche
+from backend.tools.rate_limiter import BudgetGuard
 
 
 class FakeLLMClient:

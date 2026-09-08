@@ -15,11 +15,11 @@ délibéré : sur un lot de 100 établissements, un budget épuisé à l'établi
 
 import time
 
-from agents.database_agent import DatabaseAgent
-from agents.discovery import DiscoveryAgent
-from agents.profile import ProfileAgent
-from agents.scoring import ScoringAgent
-from config import DELAI_ENTRE_ETABLISSEMENTS_SEC
+from backend.agents.database_agent import DatabaseAgent
+from backend.agents.discovery import DiscoveryAgent
+from backend.agents.profile import ProfileAgent
+from backend.agents.scoring import ScoringAgent
+from backend.config import DELAI_ENTRE_ETABLISSEMENTS_SEC
 
 
 class CoordinatorAgent:

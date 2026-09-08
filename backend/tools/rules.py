@@ -9,7 +9,7 @@ nécessaire (effectif estimé, fraîcheur d'un site, détection d'un réseau).
 import re
 from urllib.parse import urlparse
 
-from config import DOMAINES_EMAIL_GENERIQUES
+from backend.config import DOMAINES_EMAIL_GENERIQUES
 
 REGEX_TEL_DZ = re.compile(r"(?:\+213|00213|0)(?:[567]\d{8}|[1-4]\d{7,8})")
 REGEX_EMAIL = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")

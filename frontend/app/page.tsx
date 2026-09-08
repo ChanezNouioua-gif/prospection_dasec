@@ -11,7 +11,7 @@ import {
   Globe2,
   FileBarChart,
 } from "lucide-react";
-
+import Image from "next/image";
 export default function Home() {
   return (
     <main className="min-h-screen bg-white text-slate-900">
@@ -32,12 +32,19 @@ function Navbar() {
     <header className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 shadow-lg shadow-blue-500/25">
-            <ShieldCheck className="h-5 w-5 text-white" />
+          <div className="flex h-10 w-10 items-center justify-center">
+             <Image
+               src="/logo_dasecgroup.png"
+               alt="DASEC Group"
+               width={40}
+               height={40}
+               className="h-10 w-10 object-contain"
+               priority
+             />
           </div>
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
-              DASEC
+              DASEC GROUP 
             </p>
             <h2 className="text-lg font-bold tracking-tight">
               Prospect Intelligence

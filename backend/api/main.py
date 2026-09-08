@@ -11,7 +11,7 @@ from database.repository import EntrepriseRepository
 
 app = FastAPI(title="ProspectionAI API")
 
-from api.auth import router as auth_router
+from api.auth import router as auth_router, get_current_user, UserOut
 app.include_router(auth_router)
 
 app.add_middleware(
@@ -27,6 +27,7 @@ app.add_middleware(
 def detail_prospect(
     prospect_id: int,
     connexion: sqlite3.Connection = Depends(get_connexion),
+    utilisateur: UserOut = Depends(get_current_user),
 ):
     repo = EntrepriseRepository(connexion)
     prospect = repo.get_par_id(prospect_id)
@@ -36,7 +37,10 @@ def detail_prospect(
 
 
 @app.get("/stats")
-def stats(connexion: sqlite3.Connection = Depends(get_connexion)):
+def stats(
+    connexion: sqlite3.Connection = Depends(get_connexion),
+    utilisateur: UserOut = Depends(get_current_user),
+):
     cursor = connexion.execute("""
         SELECT secteur, COUNT(*) as total, AVG(score_dasec) as score_moyen
         FROM entreprises
@@ -48,15 +52,16 @@ def stats(connexion: sqlite3.Connection = Depends(get_connexion)):
 @app.get("/prospects")
 def lister_prospects(
     wilaya: Optional[str] = None,
-    commune: Optional[str] = None,          # <-- ajouté
+    commune: Optional[str] = None,
     secteur: Optional[str] = None,
     sous_secteur: Optional[str] = None,
     score_min: Optional[float] = None,
     statut: Optional[str] = None,
-    dans_crm: Optional[int] = None,         # <-- ajouté
+    dans_crm: Optional[int] = None,
     page: int = Query(1, ge=1),
     limite: int = Query(10, le=200),
     connexion: sqlite3.Connection = Depends(get_connexion),
+    utilisateur: UserOut = Depends(get_current_user),
 ):
     conditions = []
     params: list = []
@@ -94,12 +99,12 @@ def lister_prospects(
     return {"items": [dict(r) for r in rows], "total": total, "page": page}
 
 
-
 @app.get("/filtres")
 def obtenir_filtres(
     wilaya: Optional[str] = None,
     secteur: Optional[str] = None,
     connexion: sqlite3.Connection = Depends(get_connexion),
+    utilisateur: UserOut = Depends(get_current_user),
 ):
     wilayas = [r[0] for r in connexion.execute(
         "SELECT DISTINCT wilaya_name FROM entreprises WHERE wilaya_name IS NOT NULL ORDER BY wilaya_name"
@@ -109,7 +114,6 @@ def obtenir_filtres(
         "SELECT DISTINCT secteur FROM entreprises WHERE secteur IS NOT NULL ORDER BY secteur"
     ).fetchall()]
 
-    # Communes dépendent de la wilaya choisie (cascade)
     cond_communes, params_communes = "WHERE commune_brute IS NOT NULL", []
     if wilaya:
         cond_communes += " AND wilaya_name = ?"
@@ -118,7 +122,6 @@ def obtenir_filtres(
         f"SELECT DISTINCT commune_brute FROM entreprises {cond_communes} ORDER BY commune_brute", params_communes
     ).fetchall()]
 
-    # Sous-secteurs dépendent du secteur choisi (cascade)
     cond_ss, params_ss = "WHERE sous_secteur IS NOT NULL", []
     if secteur:
         cond_ss += " AND secteur = ?"
@@ -130,23 +133,34 @@ def obtenir_filtres(
     return {"wilayas": wilayas, "secteurs": secteurs, "communes": communes, "sous_secteurs": sous_secteurs}
 
 
-
 STATUTS_PIPELINE = ["NOUVEAU", "A_CONTACTER", "CONTACTE", "ECHANGE", "RDV", "PROPOSITION", "GAGNE", "PERDU"]
 
 @app.post("/prospects/{prospect_id}/crm")
-def ajouter_au_crm(prospect_id: int, repo: EntrepriseRepository = Depends(get_repository)):
+def ajouter_au_crm(
+    prospect_id: int,
+    repo: EntrepriseRepository = Depends(get_repository),
+    utilisateur: UserOut = Depends(get_current_user),
+):
     repo.ajouter_au_crm(prospect_id)
     return {"ok": True}
 
 @app.patch("/prospects/{prospect_id}/statut")
-def changer_statut(prospect_id: int, statut: str, repo: EntrepriseRepository = Depends(get_repository)):
+def changer_statut(
+    prospect_id: int,
+    statut: str,
+    repo: EntrepriseRepository = Depends(get_repository),
+    utilisateur: UserOut = Depends(get_current_user),
+):
     if statut not in STATUTS_PIPELINE:
         raise HTTPException(status_code=400, detail=f"Statut invalide. Valeurs acceptées : {STATUTS_PIPELINE}")
     repo.maj_statut_crm(prospect_id, statut)
     return {"ok": True}
 
 @app.get("/crm/resume")
-def resume_crm(repo: EntrepriseRepository = Depends(get_repository)):
+def resume_crm(
+    repo: EntrepriseRepository = Depends(get_repository),
+    utilisateur: UserOut = Depends(get_current_user),
+):
     pipeline = {s: 0 for s in STATUTS_PIPELINE}
     for ligne in repo.resume_pipeline():
         pipeline[ligne["statut"]] = ligne["n"]
@@ -196,16 +210,50 @@ def resume_crm(repo: EntrepriseRepository = Depends(get_repository)):
         "equipe": [],
     }
 
+
+@app.get("/crm/historique")
+def historique_crm(
+    q: Optional[str] = None,
+    type: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limite: int = Query(25, ge=1, le=100),
+    repo: EntrepriseRepository = Depends(get_repository),
+    utilisateur: UserOut = Depends(get_current_user),
+):
+    interactions, total = repo.get_historique_interactions(q, type, page, limite)
+    types_valides = {"appel", "email", "rdv", "note", "statut", "relance"}
+    return {
+        "items": [
+            {
+                **interaction,
+                "type": interaction["type"] if interaction["type"] in types_valides else "note",
+                "auteur": "Hanane",
+            }
+            for interaction in interactions
+        ],
+        "total": total,
+        "page": page,
+    }
+
 class MotifPerteIn(BaseModel):
     motif: str
 
 @app.patch("/crm/taches/{prospect_id}/complete")
-def completer_tache(prospect_id: int, repo: EntrepriseRepository = Depends(get_repository)):
+def completer_tache(
+    prospect_id: int,
+    repo: EntrepriseRepository = Depends(get_repository),
+    utilisateur: UserOut = Depends(get_current_user),
+):
     repo.completer_tache(prospect_id)
     return {"ok": True}
 
 @app.patch("/prospects/{prospect_id}/perdu")
-def marquer_perdu(prospect_id: int, body: MotifPerteIn, repo: EntrepriseRepository = Depends(get_repository)):
+def marquer_perdu(
+    prospect_id: int,
+    body: MotifPerteIn,
+    repo: EntrepriseRepository = Depends(get_repository),
+    utilisateur: UserOut = Depends(get_current_user),
+):
     repo.marquer_perdu(prospect_id, body.motif)
     return {"ok": True}
 
@@ -215,33 +263,38 @@ class ProchaineActionIn(BaseModel):
     date: str
 
 @app.patch("/prospects/{prospect_id}/prochaine-action")
-def changer_prochaine_action(prospect_id: int, body: ProchaineActionIn, repo: EntrepriseRepository = Depends(get_repository)):
+def changer_prochaine_action(
+    prospect_id: int,
+    body: ProchaineActionIn,
+    repo: EntrepriseRepository = Depends(get_repository),
+    utilisateur: UserOut = Depends(get_current_user),
+):
     repo.maj_prochaine_action(prospect_id, body.texte, body.date)
     return {"ok": True}
 
 
 class NoteIn(BaseModel):
     contenu: str
+    type: str = "note"
 
 @app.post("/prospects/{prospect_id}/notes")
-def ajouter_note(prospect_id: int, body: NoteIn, repo: EntrepriseRepository = Depends(get_repository)):
-    repo.ajouter_interaction(prospect_id, "note", body.contenu)
-    return {"ok": True}
-
-@app.get("/prospects/{prospect_id}/interactions")
-def lister_interactions(prospect_id: int, repo: EntrepriseRepository = Depends(get_repository)):
-    return repo.get_interactions(prospect_id)
-
-
-class NoteIn(BaseModel):
-    contenu: str
-    type: str = "note"  # appel, email, rdv, note
-
-@app.post("/prospects/{prospect_id}/notes")
-def ajouter_note(prospect_id: int, body: NoteIn, repo: EntrepriseRepository = Depends(get_repository)):
+def ajouter_note(
+    prospect_id: int,
+    body: NoteIn,
+    repo: EntrepriseRepository = Depends(get_repository),
+    utilisateur: UserOut = Depends(get_current_user),
+):
     type_valide = body.type if body.type in ("appel", "email", "rdv", "note") else "note"
     repo.ajouter_interaction(prospect_id, type_valide, body.contenu)
     return {"ok": True}
+
+@app.get("/prospects/{prospect_id}/interactions")
+def lister_interactions(
+    prospect_id: int,
+    repo: EntrepriseRepository = Depends(get_repository),
+    utilisateur: UserOut = Depends(get_current_user),
+):
+    return repo.get_interactions(prospect_id)
 
 
 import json
@@ -299,7 +352,6 @@ def calculer_confiance_contact(row: dict) -> dict:
     return {"label": label, "score": points, "raisons": raisons}
 
 
-
 @app.get("/decideurs")
 def lister_decideurs(
     wilaya: Optional[str] = None,
@@ -309,6 +361,7 @@ def lister_decideurs(
     page: int = Query(1, ge=1),
     limite: int = Query(20, le=200),
     connexion: sqlite3.Connection = Depends(get_connexion),
+    utilisateur: UserOut = Depends(get_current_user),
 ):
     conditions = []
     params: list = []
@@ -341,7 +394,10 @@ def lister_decideurs(
 
 
 @app.get("/decideurs/resume")
-def resume_decideurs(connexion: sqlite3.Connection = Depends(get_connexion)):
+def resume_decideurs(
+    connexion: sqlite3.Connection = Depends(get_connexion),
+    utilisateur: UserOut = Depends(get_current_user),
+):
     rows = connexion.execute("SELECT * FROM entreprises").fetchall()
     total = len(rows)
     trouves = 0
@@ -356,5 +412,5 @@ def resume_decideurs(connexion: sqlite3.Connection = Depends(get_connexion)):
         "analyses": total,
         "decideurs_trouves": trouves,
         "a_verifier": a_verifier,
-        "a_retraiter": None,  # bloc 3 (file de retraitement) pas encore construit
+        "a_retraiter": None,
     }

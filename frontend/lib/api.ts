@@ -1,18 +1,25 @@
-const API_URL = "http://localhost:8000";
-
-export async function getProspects(params?: { secteur?: string; score_min?: number }) {
-  const query = new URLSearchParams(params as Record<string, string>).toString();
-  const res = await fetch(`${API_URL}/prospects`, {
-  credentials: "include",
-   });
-  if (!res.ok) throw new Error("Erreur chargement prospects");
+export const API_URL = "http://localhost:8000";
+export async function logout() {
+  const res = await fetch(`${API_URL}/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Erreur lors de la déconnexion");
   return res.json();
 }
 
-export async function getProspect(id: number) {
-  const res = await fetch(`${API_URL}/prospects`, {
-  credentials: "include",
-   });
-  if (!res.ok) throw new Error("Prospect introuvable");
+export async function getCurrentUser() {
+  const res = await fetch(`${API_URL}/auth/me`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Non authentifié");
+  return res.json();
+}
+
+export async function getResumeCrm() {
+  const res = await fetch(`${API_URL}/crm/resume`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Erreur chargement du résumé CRM");
   return res.json();
 }

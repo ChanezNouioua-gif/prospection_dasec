@@ -261,6 +261,43 @@ class EntrepriseRepository:
         """, (limite,))
         return [dict(row) for row in cursor.fetchall()]
 
+    def get_historique_interactions(
+        self,
+        recherche: str | None = None,
+        type_interaction: str | None = None,
+        page: int = 1,
+        limite: int = 25,
+    ) -> tuple[list[dict], int]:
+        conditions: list[str] = []
+        params: list[str] = []
+
+        if recherche:
+            conditions.append("(e.nom LIKE ? OR i.contenu LIKE ?)")
+            motif = f"%{recherche}%"
+            params.extend([motif, motif])
+        if type_interaction:
+            conditions.append("i.type = ?")
+            params.append(type_interaction)
+
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        total = self.connexion.execute(
+            f"SELECT COUNT(*) FROM interactions i JOIN entreprises e ON e.id = i.entreprise_id {where}",
+            params,
+        ).fetchone()[0]
+        rows = self.connexion.execute(
+            f"""
+            SELECT i.id, i.entreprise_id, i.type, i.contenu, i.date,
+                   e.nom AS entreprise_nom, e.secteur, e.sous_secteur
+            FROM interactions i
+            JOIN entreprises e ON e.id = i.entreprise_id
+            {where}
+            ORDER BY i.date DESC, i.id DESC
+            LIMIT ? OFFSET ?
+            """,
+            params + [limite, (page - 1) * limite],
+        ).fetchall()
+        return [dict(row) for row in rows], total
+
     def maj_prochaine_action(self, entreprise_id: int, texte: str, date: str):
         self.connexion.execute(
             "UPDATE entreprises SET prochaine_action = ?, prochaine_action_date = ? WHERE id = ?",

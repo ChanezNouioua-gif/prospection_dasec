@@ -245,7 +245,19 @@ export default function ProspectPage() {
   let scoreDetail: Record<string, number> | null = null;
   if (prospect.score_detail) {
     try {
-      scoreDetail = JSON.parse(prospect.score_detail);
+      const parsed: unknown = JSON.parse(prospect.score_detail);
+      const values =
+        parsed && typeof parsed === "object" && !Array.isArray(parsed) &&
+        "contributions" in parsed &&
+        parsed.contributions && typeof parsed.contributions === "object" && !Array.isArray(parsed.contributions)
+          ? parsed.contributions
+          : parsed;
+
+      if (values && typeof values === "object" && !Array.isArray(values)) {
+        scoreDetail = Object.fromEntries(
+          Object.entries(values).filter(([, value]) => typeof value === "number")
+        );
+      }
     } catch {
       scoreDetail = null;
     }

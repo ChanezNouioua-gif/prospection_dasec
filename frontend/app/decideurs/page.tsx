@@ -198,82 +198,9 @@ export default function DecideursPage() {
 /* Sidebar / TopBar                                                   */
 /* ---------------------------------------------------------------- */
 
-function Sidebar() {
-  const items = [
-    { label: "Prospection", icon: Radar, href: "/dashboard", active: false },
-    { label: "Décideurs", icon: UserSearch, href: "/decideurs", active: true },
-    { label: "CRM", icon: Building2, href: "/crm", active: false },
-    { label: "Campagnes", icon: Megaphone, href: "#", active: false },
-    { label: "Historique", icon: History, href: "#", active: false },
-    { label: "Paramètres", icon: Settings, href: "#", active: false },
-  ];
+import { Sidebar } from "@/components/Sidebar";
 
-  return (
-    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col justify-between border-r border-slate-200/70 bg-white px-4 py-6">
-      <div>
-        <div className="flex items-center gap-2.5 px-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 shadow-lg shadow-blue-500/25">
-            <ShieldCheck className="h-4.5 w-4.5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold leading-tight text-slate-900">DASEC</p>
-            <p className="text-[11px] text-slate-400">Prospect Intelligence</p>
-          </div>
-        </div>
-
-        <nav className="mt-8 flex flex-col gap-1">
-          {items.map(({ label, icon: Icon, href, active }) => (
-            <Link
-              key={label}
-              href={href}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                active
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-
-      <div className="flex flex-col gap-1 border-t border-slate-100 pt-4">
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
-            H
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-800">Hanane</p>
-            <p className="text-[11px] text-slate-400">Commerciale</p>
-          </div>
-        </div>
-        <button className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-400 transition hover:bg-slate-50 hover:text-slate-700">
-          <LogOut className="h-4 w-4" />
-          Déconnexion
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function TopBar() {
-  return (
-    <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-20 max-w-[1500px] items-center gap-4 px-6">
-        <div className="relative flex-1 max-w-xl">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Rechercher un prospect ou un décideur..."
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/60 py-2.5 pl-11 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
-          />
-        </div>
-      </div>
-    </header>
-  );
-}
+import { TopBar } from "@/components/TopBar";
 
 /* ---------------------------------------------------------------- */
 /* Stats                                                              */

@@ -19,7 +19,8 @@ from agents.scoring import ScoringAgent
 from agents.coordinator import CoordinatorAgent
 from tools.rate_limiter import BudgetGuard
 from tools.llm_client import get_llm_client
-from tools.discovery_tools import RechercheTavilyTool  
+from tools.discovery_tools import RechercheTavilyTool 
+
 
 HEADERS_HTTP = {"User-Agent": "dasec-prospection/1.0 (contact: TON_EMAIL@exemple.com)"}
 print(DB_PATH)

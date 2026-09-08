@@ -1,11 +1,11 @@
 import sqlite3
 import pytest
 
-from database.connection import obtenir_connexion
-from database.repository import EntrepriseRepository
-from agents.database_agent import DatabaseAgent
-from agents.scoring import ScoringAgent
-from models.schemas import ProfileData
+from backend.database.connection import obtenir_connexion
+from backend.database.repository import EntrepriseRepository
+from backend.agents.database_agent import DatabaseAgent
+from backend.agents.scoring import ScoringAgent
+from backend.models.schemas import ProfileData
 
 
 @pytest.fixture

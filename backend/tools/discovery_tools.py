@@ -7,6 +7,13 @@ de changer de fournisseur de recherche sans toucher au raisonnement de
 l'agent, et surtout : c'est le LLM qui décide s'il "paie" ou non (le budget
 restant lui est donné dans le prompt), pas un seuil hardcodé comme dans
 l'ancienne version (HybridSearchTool).
+
+PATCH (quota Serper épuisé) : RecherchePayanteTool distingue maintenant
+QuotaEpuiseError (compte Serper réellement à sec, erreur permanente) des
+autres échecs (réseau, timeout — déjà retentés par SerperProvider lui-même).
+Sur QuotaEpuiseError, le budget est désactivé pour TOUT le reste du run
+(budget_guard.epuiser_definitivement()) : les établissements suivants ne
+perdront plus de temps à retenter Serper.
 """
 
 import time
@@ -14,7 +21,7 @@ import time
 import requests
 
 from models.schemas import DiscoveryObservation
-from tools.web_search import DuckDuckGoProvider, SerperProvider, ResultatRecherche, TavilyProvider
+from tools.web_search import DuckDuckGoProvider, SerperProvider, ResultatRecherche, TavilyProvider, QuotaEpuiseError
 from tools.rate_limiter import BudgetGuard
 DOMAINES_PAR_TYPE = {
     "facebook": ["facebook.com"],
@@ -87,10 +94,21 @@ class RechercheTavilyTool:
 
 
 class RechercheGratuiteTool:
-    """Recherche web via DuckDuckGo — gratuite, aucun garde-fou budget nécessaire."""
+    """Recherche web via DuckDuckGo/Brave (ddgs) — gratuite, aucun garde-fou
+    budget nécessaire.
+
+    PATCH (ddgs peu fiable) : les deux backends ddgs (brave, duckduckgo) se
+    sont révélés bloqués tour à tour dans la même session (rate-limiting IP
+    après un run un peu volumineux) — ce n'est pas un bug ponctuel mais une
+    fragilité structurelle du scraping sans API officielle. Avant de
+    déclarer l'échec complet (et de faire remonter "aucune source trouvée"
+    au Planner), on tente Tavily (vraie API, 1000 requêtes/mois gratuites)
+    en dernier recours. Ce n'est pas gratuit à l'infini comme ddgs — donc on
+    ne l'essaie qu'après l'échec de ddgs, pas en remplacement."""
 
     def __init__(self):
         self.provider = DuckDuckGoProvider()
+        self.provider_secours = TavilyProvider()
 
     def executer(self, requete: str) -> DiscoveryObservation:
      if not requete:
@@ -106,14 +124,32 @@ class RechercheGratuiteTool:
             print(f"[DISCOVERY][recherche_gratuite] tentative {tentative+1} échouée : {type(e).__name__}: {e}")
             if tentative == 0:
                 time.sleep(3)
-     return DiscoveryObservation(resume="recherche gratuite échouée après retry", resultats=[])
+
+     # PATCH : ddgs (brave + duckduckgo) a échoué sur les 2 tentatives —
+     # dernier recours Tavily avant d'abandonner complètement.
+     try:
+        resultats = self.provider_secours.search(requete, max_resultats=8)
+        print(f"[DISCOVERY][recherche_gratuite] ddgs indisponible, secours Tavily : {len(resultats)} résultat(s)")
+        return DiscoveryObservation(
+            resume=f"recherche gratuite (secours Tavily) pour '{requete}' : {len(resultats)} résultat(s)",
+            resultats=resultats,
+        )
+     except Exception as e:
+        print(f"[DISCOVERY][recherche_gratuite] secours Tavily aussi échoué : {type(e).__name__}: {e}")
+
+     return DiscoveryObservation(resume="recherche gratuite échouée après retry (ddgs + Tavily)", resultats=[])
 
 class RecherchePayanteTool:
     """Recherche web via Serper — payante. Le Planner décide de l'utiliser
     (le budget restant lui est indiqué dans le prompt), mais le garde-fou est
     quand même appliqué ici : si le LLM l'ignore et l'appelle malgré un budget
     épuisé, l'outil échoue proprement (observation, pas d'exception qui
-    remonterait jusqu'au Coordinator et ferait échouer tout l'établissement)."""
+    remonterait jusqu'au Coordinator et ferait échouer tout l'établissement).
+
+    PATCH (quota Serper épuisé) : QuotaEpuiseError est traitée à part —
+    c'est le signal que le compte Serper réel est à sec, pas juste notre
+    plafond local. On appelle budget_guard.epuiser_definitivement() pour que
+    plus aucun établissement suivant, dans ce run, ne retente Serper."""
 
     def __init__(self, budget_guard: BudgetGuard):
         self.provider = SerperProvider(budget_guard)
@@ -127,6 +163,12 @@ class RecherchePayanteTool:
 
         try:
             resultats = self.provider.search(requete, max_resultats=8)
+        except QuotaEpuiseError as e:
+            if not self.budget_guard.quota_fournisseur_epuise:
+                print(f"[DISCOVERY][recherche_payante] quota Serper épuisé côté fournisseur, "
+                      f"désactivé pour le reste du run : {e}")
+            self.budget_guard.epuiser_definitivement()
+            return DiscoveryObservation(resume="recherche payante épuisée : quota Serper épuisé (compte à sec)", resultats=[])
         except RuntimeError as e:
             return DiscoveryObservation(resume=f"recherche payante épuisée : {e}", resultats=[])
         except Exception as e:
